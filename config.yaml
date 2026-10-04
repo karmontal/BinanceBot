@@ -1,0 +1,78 @@
+# ============================================================
+#  BinanceBot configuration
+#  Every entry under `bots:` runs in parallel with its own budget.
+# ============================================================
+
+# paper   = simulated trading on real live prices (no API keys needed)
+# testnet = real orders on Binance Spot Testnet (fake money)
+# live    = REAL MONEY. Also requires env BINANCE_LIVE_CONFIRM=YES
+mode: paper
+
+# Public market data endpoint. If api.binance.com is blocked where you are,
+# use https://data-api.binance.vision
+market_data_url: https://api.binance.com
+
+poll_seconds: 30        # how often each bot checks price / new candles
+summary_minutes: 60     # print a comparison table every N minutes
+fee_rate: 0.001         # 0.1% Binance spot fee (paper + backtest)
+slippage_pct: 0.05      # simulated slippage per fill (paper + backtest)
+db_path: data/bots.db
+
+# Values applied to every bot unless the bot overrides them.
+defaults:
+  symbol: BTCUSDT
+  interval: 1h
+  starting_balance: 1000      # USDT budget per bot
+  position_size_pct: 100      # % of the bot's equity used per trade
+  stop_loss_pct: null         # e.g. 3  -> exit if price falls 3% below entry
+  take_profit_pct: null       # e.g. 6  -> exit if price rises 6% above entry
+  trailing_stop_pct: null     # e.g. 4  -> exit if price falls 4% from its peak
+
+bots:
+  # Benchmark: every strategy should beat this to be worth it.
+  - name: buy_and_hold
+    strategy: buy_and_hold
+
+  - name: sma_cross_20_50
+    strategy: sma_crossover
+    params: {fast: 20, slow: 50}
+
+  - name: ema_trend_12_26_200
+    strategy: ema_trend
+    params: {fast: 12, slow: 26, trend: 200}
+
+  - name: rsi_reversion_14
+    strategy: rsi_reversion
+    params: {period: 14, oversold: 30, overbought: 70}
+    stop_loss_pct: 5
+
+  - name: bollinger_reversion_20
+    strategy: bollinger_reversion
+    params: {period: 20, num_std: 2.0, exit: middle}
+    stop_loss_pct: 5
+
+  - name: macd_cross
+    strategy: macd_cross
+    params: {fast: 12, slow: 26, signal: 9}
+
+  - name: donchian_breakout_20_10
+    strategy: donchian_breakout
+    params: {entry_period: 20, exit_period: 10}
+
+  - name: supertrend_10_3
+    strategy: supertrend
+    params: {period: 10, multiplier: 3.0}
+
+  # Same idea, different settings: compare variants side by side.
+  - name: sma_cross_20_50_risk
+    strategy: sma_crossover
+    params: {fast: 20, slow: 50}
+    stop_loss_pct: 3
+    trailing_stop_pct: 5
+
+  # Example on another symbol / timeframe (set enabled: true to use it)
+  - name: supertrend_eth_4h
+    strategy: supertrend
+    symbol: ETHUSDT
+    interval: 4h
+    enabled: false
