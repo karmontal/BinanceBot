@@ -47,3 +47,32 @@ def test_signed_order_request():
     expected = hmac.new(b"secret", urlencode(params).encode(), hashlib.sha256).hexdigest()
     assert sig == expected
     assert params["quoteOrderQty"] == "10" and params["type"] == "MARKET"
+
+
+class FailingSession:
+    def __init__(self):
+        self.calls = 0
+
+    def request(self, *a, **kw):
+        import requests
+
+        self.calls += 1
+        raise requests.ConnectionError("down")
+
+
+def test_retry_backoff_ends_on_shutdown():
+    import threading
+    import time
+
+    import pytest
+
+    from binancebot.exchange import BinanceError
+
+    s = FailingSession()
+    c = BinanceClient(session=s, max_retries=5)
+    threading.Timer(0.2, c.stop_event.set).start()
+    started = time.time()
+    with pytest.raises(BinanceError):
+        c.price("BTCUSDT")
+    assert time.time() - started < 2  # would be 2+4+8+10s without the stop event
+    assert s.calls == 1

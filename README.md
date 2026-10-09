@@ -23,6 +23,7 @@
 | `supertrend` | تتبّع اتجاه (تقلّب) | [docs/strategies/supertrend.md](docs/strategies/supertrend.md) |
 
 **كيف نقيّم ونختار:** [docs/evaluation.md](docs/evaluation.md)
+**التشغيل على سيرفر بـ Docker:** [docs/deploy-docker.md](docs/deploy-docker.md)
 
 ## التثبيت
 
@@ -64,7 +65,13 @@ python main.py run --reset all                           # بداية من ال�
 python main.py run --reset macd_cross                    # تصفير بوت واحد
 ```
 
-> لازم يضل شغّال 24/7 عشان النتائج تكون صح — الأفضل على VPS أو سيرفر (مثلاً مع `tmux` أو `systemd` أو `nohup`).
+> لازم يضل شغّال 24/7 عشان النتائج تكون صح، والأفضل على VPS.
+> **التشغيل بـ Docker على VPS (مثلاً Hostinger):** [docs/deploy-docker.md](docs/deploy-docker.md)
+> ```bash
+> docker compose up -d --build                     # تشغيل بالخلفية 24/7
+> docker compose exec bot python main.py report    # التقرير
+> docker compose logs -f --tail 100                # الـ logs
+> ```
 
 ### 4. التقرير بأي وقت (حتى والبوتات شغالة)
 ```bash
@@ -137,6 +144,7 @@ bots:
 ```
 main.py                      # CLI: strategies / backtest / run / report
 config.yaml                  # تعريف البوتات
+Dockerfile, docker-compose.yml, .env.example
 binancebot/
   strategies/                # كل استراتيجية بملف (أضف استراتيجيتك هون)
   indicators.py              # SMA, EMA, RSI, Bollinger, MACD, ATR, Supertrend...

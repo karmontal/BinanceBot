@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
+import threading
 import time
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
@@ -41,6 +42,8 @@ class BinanceClient:
         self.max_retries = max_retries
         self.session = session or requests.Session()
         self._filters_cache: Dict[str, Dict[str, float]] = {}
+        # Set on shutdown so retry back-offs end immediately.
+        self.stop_event = threading.Event()
 
     # ------------------------------------------------------------------ http
     def _request(
@@ -60,6 +63,8 @@ class BinanceClient:
             headers["X-MBX-APIKEY"] = self.api_key
         last_exc: Optional[Exception] = None
         for attempt in range(1, max_retries + 1):
+            if attempt > 1 and self.stop_event.is_set():
+                break
             query = dict(params)
             if signed:
                 query["timestamp"] = int(time.time() * 1000)
@@ -75,13 +80,13 @@ class BinanceClient:
             except requests.RequestException as exc:
                 last_exc = exc
                 log.warning("Binance request failed (%s/%s): %s", attempt, max_retries, exc)
-                time.sleep(min(2**attempt, 10))
+                self.stop_event.wait(min(2**attempt, 10))
                 continue
             if resp.status_code in (418, 429) or resp.status_code >= 500:
                 last_exc = BinanceError(f"HTTP {resp.status_code}: {resp.text[:200]}")
                 wait = float(resp.headers.get("Retry-After", min(2**attempt, 30)))
                 log.warning("Binance throttled/unavailable, retrying in %ss", wait)
-                time.sleep(wait)
+                self.stop_event.wait(wait)
                 continue
             if resp.status_code >= 400:
                 # Orders must never be retried blindly on a 4xx.

@@ -1,0 +1,21 @@
+services:
+  bot:
+    build: .
+    image: binancebot
+    container_name: binancebot
+    restart: unless-stopped          # restarts after crashes and server reboots
+    env_file:
+      - path: .env                   # API keys (only needed for testnet/live)
+        required: false
+    environment:
+      - TZ=UTC
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro   # edit on the server, then: docker compose restart
+      - ./data:/app/data                    # bot state + trade history (survives rebuilds)
+      - ./reports:/app/reports              # backtest results
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"

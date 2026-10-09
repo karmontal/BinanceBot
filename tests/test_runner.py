@@ -16,6 +16,7 @@ class FakeMarketClient:
         self.candles = generate_candles(800, "1h", seed=3)
         self.cursor = 400
         self.lock = threading.Lock()
+        self.stop_event = threading.Event()
 
     def closed_klines(self, symbol, interval, limit):
         with self.lock:
