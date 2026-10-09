@@ -155,6 +155,12 @@ def cmd_report(args) -> None:
         print(f"\nSaved to {args.csv}")
 
 
+def cmd_dashboard(args) -> None:
+    from binancebot.dashboard import serve
+
+    serve(args.config, host=args.host, port=args.port, reports_dir=args.reports)
+
+
 def main(argv=None) -> None:
     p = argparse.ArgumentParser(description="Multi-strategy Binance trading bots")
     p.add_argument("-c", "--config", default="config.yaml")
@@ -183,9 +189,20 @@ def main(argv=None) -> None:
     rep.add_argument("--only", help="comma separated bot names")
     rep.add_argument("--csv", help="also save the table to this CSV path")
 
+    d = sub.add_parser("dashboard", help="web dashboard (read-only)")
+    d.add_argument("--host", default="127.0.0.1", help="use 0.0.0.0 inside Docker")
+    d.add_argument("--port", type=int, default=8080)
+    d.add_argument("--reports", default="reports", help="folder with backtest results")
+
     args = p.parse_args(argv)
     _setup_logging(args.verbose)
-    {"strategies": cmd_strategies, "backtest": cmd_backtest, "run": cmd_run, "report": cmd_report}[args.cmd](args)
+    {
+        "strategies": cmd_strategies,
+        "backtest": cmd_backtest,
+        "run": cmd_run,
+        "report": cmd_report,
+        "dashboard": cmd_dashboard,
+    }[args.cmd](args)
 
 
 if __name__ == "__main__":

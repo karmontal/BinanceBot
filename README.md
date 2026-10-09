@@ -76,7 +76,18 @@ python main.py run --reset macd_cross                    # تصفير بوت و�
 > docker compose logs -f --tail 100                # الـ logs
 > ```
 
-### 4. التقرير بأي وقت (حتى والبوتات شغالة)
+### 4. الداشبورد 📊
+```bash
+python main.py dashboard          # http://localhost:8080
+```
+صفحة ويب بالعربي فيها:
+- حالة كل البوتات ومنحنى أداء كل بوت مقابل Buy & Hold
+- تفاصيل كل بوت: إعداداته، والصفقة المفتوحة، وكل صفقاته على الرسم وبجدول
+- كل نتائج الباك تست
+
+بـ Docker بتشتغل تلقائياً مع `docker compose up -d`. كيف تفتحها من جهازك: [docs/deploy-docker.md](docs/deploy-docker.md#الداشبورد-)
+
+### 5. التقرير بالـ terminal (حتى والبوتات شغالة)
 ```bash
 python main.py report
 python main.py report --csv reports/paper_week1.csv
@@ -146,7 +157,7 @@ bots:
 ## بنية المشروع
 
 ```
-main.py                      # CLI: strategies / backtest / run / report
+main.py                      # CLI: strategies / backtest / run / report / dashboard
 config.yaml                  # تعريف البوتات
 Dockerfile, docker-compose.yml, .env.example
 binancebot/
@@ -159,6 +170,7 @@ binancebot/
   backtest.py                # باك تست بنفس منطق البوت
   metrics.py / report.py     # مقاييس الأداء وجداول المقارنة
   storage.py                 # SQLite
+  dashboard/                 # لوحة الويب (بدون مكتبات إضافية، Chart.js مضمّن)
 docs/
   strategies/*.md            # شرح كل استراتيجية
   evaluation.md              # كيف نقيّم ونختار

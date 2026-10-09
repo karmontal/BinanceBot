@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BinanceBot Dashboard</title>
+<script src="static/chart.umd.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f4f2; --surface-1: #fcfcfb; --surface-2: #f0efec; --border: #e2e1dc;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #7d7c77;
+  --grid: #e8e7e2; --benchmark: #8a8984;
+  --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
+  --series-5: #e87ba4; --series-6: #008300; --series-7: #4a3aa7; --series-8: #e34948;
+  --good: #0ca30c; --good-text: #006300; --critical: #d03b3b; --critical-text: #b42828; --warning: #fab219;
+  --accent: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111110; --surface-1: #1a1a19; --surface-2: #232321; --border: #2f2f2c;
+    --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+    --grid: #2a2a28; --benchmark: #8f8e86;
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+    --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
+    --good-text: #3fc23f; --critical-text: #ef7373; --accent: #3987e5;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111110; --surface-1: #1a1a19; --surface-2: #232321; --border: #2f2f2c;
+  --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+  --grid: #2a2a28; --benchmark: #8f8e86;
+  --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+  --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
+  --good-text: #3fc23f; --critical-text: #ef7373; --accent: #3987e5;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text-primary);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Tahoma, "Noto Sans Arabic", sans-serif; }
+.num, .ltr { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 16px; }
+header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+h1 { font-size: 20px; margin: 0; }
+h2 { font-size: 16px; margin: 0 0 4px; }
+.sub { color: var(--text-secondary); font-size: 13px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border); font-size: 12px; font-weight: 600; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot.ok { background: var(--good); } .dot.bad { background: var(--critical); } .dot.idle { background: var(--text-muted); }
+.tabs { display: flex; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 10px; border: 1px solid var(--border); }
+.tabs button { border: 0; background: transparent; color: var(--text-secondary); padding: 6px 14px; border-radius: 7px; cursor: pointer; font: inherit; }
+.tabs button[aria-selected="true"] { background: var(--surface-1); color: var(--text-primary); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpi { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.kpi .label { color: var(--text-secondary); font-size: 12px; }
+.kpi { min-width: 0; }
+.kpi .value { font-size: 24px; font-weight: 650; margin-top: 2px; overflow-wrap: anywhere; }
+.kpi .hint { color: var(--text-muted); font-size: 12px; }
+.pos { color: var(--good-text); } .neg { color: var(--critical-text); }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; }
+.charts .card { margin-bottom: 0; }
+.chart-box { position: relative; height: 280px; margin-top: 8px; }
+.chart-box canvas { direction: ltr; } /* keep "+5.0%" / "-5.0%" signs on the correct side */
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 12px; color: var(--text-secondary); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 2px; display: inline-block; border-radius: 2px; }
+.legend i.dash { background: repeating-linear-gradient(90deg, var(--benchmark) 0 4px, transparent 4px 7px) !important; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 8px 10px; text-align: start; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--text-secondary); font-weight: 600; font-size: 12px; cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--surface-1); }
+th.sorted::after { content: " ▾"; } th.sorted.asc::after { content: " ▴"; }
+td.n, th.n { text-align: end; }
+tbody tr { cursor: pointer; } tbody tr:hover { background: var(--surface-2); }
+tbody tr.selected { background: var(--surface-2); box-shadow: inset -3px 0 0 var(--accent); }
+tr.bench td:first-child { font-style: italic; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-inline-end: 6px; vertical-align: -1px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-secondary); }
+.empty { color: var(--text-secondary); text-align: center; padding: 32px 16px; }
+.err { color: var(--critical-text); font-size: 12px; }
+.row-between { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+select { font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); }
+.theme-btn { border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary); border-radius: 8px; padding: 5px 10px; cursor: pointer; font: inherit; }
+[hidden] { display: none !important; }
+@media (max-width: 520px) { .charts { grid-template-columns: 1fr; } .kpi .value { font-size: 20px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>لوحة البوتات</h1>
+      <div class="sub" id="status-line">جاري التحميل…</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-tab="live">البوتات</button>
+        <button role="tab" aria-selected="false" data-tab="backtests">الباك تست</button>
+      </div>
+      <button class="theme-btn" id="theme-btn" title="تبديل الوضع">◐</button>
+    </div>
+  </header>
+
+  <section id="tab-live">
+    <div class="kpis" id="kpis"></div>
+    <div class="charts" id="charts"></div>
+    <div class="card" style="margin-top:16px">
+      <div class="row-between"><h2>مقارنة البوتات</h2><span class="sub">اضغط على أي بوت لتشوف تفاصيله وصفقاته</span></div>
+      <div class="table-wrap"><table id="bots-table"></table></div>
+    </div>
+    <div class="card" id="detail" hidden></div>
+  </section>
+
+  <section id="tab-backtests" hidden>
+    <div class="card">
+      <div class="row-between">
+        <div><h2>نتائج الباك تست</h2><div class="sub">من مجلد <span class="ltr">reports</span> على السيرفر</div></div>
+        <select id="bt-select"></select>
+      </div>
+      <div class="table-wrap" style="margin-top:12px"><table id="bt-table"></table></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const SERIES = 8;
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = (v, d = 2) => v == null || isNaN(v) ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const pct = (v, d = 2) => v == null ? "—" : (v > 0 ? "+" : "") + fmt(v, d) + "%";
+const cls = (v) => v == null ? "" : v > 0 ? "pos" : v < 0 ? "neg" : "";
+const num = (html) => `<span class="num">${html}</span>`;
+const isBench = (b) => b.strategy === "buy_and_hold";
+const date = (ms) => new Date(ms).toLocaleString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+const shortDate = (ms) => new Date(ms).toLocaleDateString("en-GB", { month: "short", day: "numeric" });
+function ago(sec) {
+  if (sec == null) return "—";
+  const s = Math.max(0, Math.round(Date.now() / 1000 - sec));
+  if (s < 60) return `قبل ${s} ث`;
+  if (s < 3600) return `قبل ${Math.round(s / 60)} د`;
+  if (s < 86400) return `قبل ${Math.round(s / 3600)} س`;
+  return `قبل ${Math.round(s / 86400)} يوم`;
+}
+const STRATEGY_AR = {
+  buy_and_hold: "اشترِ واحتفظ", sma_crossover: "تقاطع SMA", ema_trend: "EMA + اتجاه", rsi_reversion: "ارتداد RSI",
+  bollinger_reversion: "ارتداد بولينجر", macd_cross: "تقاطع MACD", donchian_breakout: "اختراق دونشيان", supertrend: "سوبر ترند",
+};
+
+// ---------- theme
+(function () {
+  try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  $("#theme-btn").onclick = () => {
+    const dark = document.documentElement.dataset.theme
+      ? document.documentElement.dataset.theme === "dark"
+      : matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("theme", document.documentElement.dataset.theme); } catch (e) {}
+    render();
+    if (selected) loadDetail(selected);
+    renderBacktest();
+  };
+})();
+
+// ---------- tabs
+document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach((x) => x.setAttribute("aria-selected", x === b));
+  $("#tab-live").hidden = b.dataset.tab !== "live";
+  $("#tab-backtests").hidden = b.dataset.tab !== "backtests";
+  if (b.dataset.tab === "backtests") loadBacktests();
+});
+
+// ---------- state
+let data = null, selected = null, sortKey = "return_pct", sortAsc = false;
+const colorOf = {};
+const charts = {};
+
+function assignColors(bots) {
+  // Colour follows the bot (fixed by config order), never its rank.
+  let i = 0;
+  for (const b of bots) if (!isBench(b) && !(b.name in colorOf)) colorOf[b.name] = `--series-${(i++ % SERIES) + 1}`;
+}
+const colorFor = (b) => isBench(b) ? css("--benchmark") : css(colorOf[b.name] || "--series-1");
+
+async function loadOverview() {
+  try {
+    const r = await fetch("api/overview", { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    data = await r.json();
+    assignColors(data.bots);
+    render();
+    if (selected) loadDetail(selected, true);
+  } catch (e) {
+    $("#status-line").innerHTML = `<span class="err">ما قدرت أجيب البيانات: ${esc(e.message)}</span>`;
+  }
+}
+
+function render() {
+  if (!data) return;
+  const bots = data.bots.filter((b) => b.started || b.enabled);
+  const running = bots.filter((b) => b.enabled);
+  const alive = running.filter((b) => b.alive).length;
+  const errors = running.filter((b) => b.error).length;
+  const status = running.length === 0 ? `<span class="dot idle"></span> ما في بوتات مفعّلة`
+    : alive === running.length ? `<span class="dot ok"></span> كل البوتات شغّالة`
+    : alive === 0 ? `<span class="dot bad"></span> البوتات متوقفة` : `<span class="dot bad"></span> ${alive} من ${running.length} شغّالين`;
+  $("#status-line").innerHTML = `<span class="badge">${esc(String(data.mode).toUpperCase())}</span>
+    <span class="badge">${status}</span> ${errors ? `<span class="badge"><span class="dot bad"></span>${errors} فيهم خطأ</span>` : ""}
+    <span class="sub">آخر تحديث للصفحة: <span class="num">${new Date().toLocaleTimeString("en-GB")}</span></span>`;
+
+  // KPIs (strategies only; benchmarks are reference, not money at work)
+  const strat = bots.filter((b) => !isBench(b) && b.started);
+  const total = strat.reduce((s, b) => s + b.equity, 0);
+  const start = strat.reduce((s, b) => s + b.starting_balance, 0);
+  const open = strat.filter((b) => b.in_position).length;
+  const best = strat.slice().sort((a, b) => b.return_pct - a.return_pct)[0];
+  const totalTrades = strat.reduce((s, b) => s + (b.metrics ? b.metrics.trades : 0), 0);
+  $("#kpis").innerHTML = [
+    ["رأس مال البوتات", num(fmt(total)) + " <span class='sub'>USDT</span>", `بدأوا بـ ${num(fmt(start, 0))}`],
+    ["الربح / الخسارة", `<span class="${cls(total - start)}">${num(pct(start ? (total / start - 1) * 100 : 0))}</span>`, num((total - start >= 0 ? "+" : "") + fmt(total - start) + " USDT")],
+    ["صفقات مفتوحة", num(open) + ` <span class='sub'>من ${num(strat.length)}</span>`, `صفقات مكتملة: ${num(totalTrades)}`],
+    ["أفضل بوت", best ? esc(best.name) : "—", best ? `<span class="${cls(best.return_pct)}">${num(pct(best.return_pct))}</span>` : ""],
+  ].map(([l, v, h]) => `<div class="kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="hint">${h}</div></div>`).join("");
+
+  renderCharts(bots);
+  renderTable(bots);
+}
+
+// ---------- overview charts: one per symbol, % return since each bot started
+async function renderCharts(bots) {
+  const bySymbol = {};
+  for (const b of bots) if (b.started) (bySymbol[b.symbol] ||= []).push(b);
+  const symbols = Object.keys(bySymbol);
+  const box = $("#charts");
+  if (!symbols.length) {
+    box.innerHTML = `<div class="card empty" style="grid-column:1/-1">البوتات لسا ما بلّشت. شغّلها بـ <span class="ltr">docker compose up -d</span> وارجع بعد دقيقة.</div>`;
+    return;
+  }
+  // build containers once per symbol
+  for (const sym of symbols) {
+    if (!document.getElementById("chart-" + sym)) {
+      box.insertAdjacentHTML("beforeend", `<div class="card"><h2 class="ltr" style="text-align:right">${esc(sym)}</h2>
+        <div class="sub">نسبة الربح من بداية كل بوت. الخط المتقطّع = اشترِ واحتفظ (المعيار)</div>
+        <div class="chart-box"><canvas id="chart-${esc(sym)}" role="img" aria-label="أداء البوتات على ${esc(sym)}"></canvas></div>
+        <div class="legend" id="legend-${esc(sym)}"></div></div>`);
+    }
+  }
+  const curves = await Promise.all(bots.filter((b) => b.started).map((b) =>
+    fetch("api/bot?name=" + encodeURIComponent(b.name), { cache: "no-store" }).then((r) => r.json()).then((d) => [b, d])));
+  for (const sym of symbols) {
+    const datasets = curves.filter(([b]) => b.symbol === sym).map(([b, d]) => {
+      const pts = (d.equity || []).map((p) => ({ x: p.ts, y: (p.equity / b.starting_balance - 1) * 100 }));
+      if (b.alive && b.last_seen) pts.push({ x: b.last_seen * 1000, y: b.return_pct });
+      return { label: b.name, data: pts, borderColor: colorFor(b), backgroundColor: colorFor(b), borderWidth: 2,
+        borderDash: isBench(b) ? [5, 4] : [], pointRadius: 0, pointHoverRadius: 5, tension: 0, stepped: false };
+    });
+    $("#legend-" + sym).innerHTML = datasets.map((ds) =>
+      `<span><i class="${ds.borderDash.length ? "dash" : ""}" style="background:${ds.borderColor}"></i>${esc(ds.label)}</span>`).join("");
+    drawLine("chart-" + sym, datasets, (v) => pct(v, 1));
+  }
+}
+
+function baseOptions(yFmt) {
+  const text = css("--text-secondary"), grid = css("--grid");
+  return {
+    responsive: true, maintainAspectRatio: false, animation: false, parsing: false,
+    interaction: { mode: "nearest", axis: "x", intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: { rtl: true, textDirection: "rtl", backgroundColor: css("--surface-1"), titleColor: css("--text-primary"),
+        bodyColor: css("--text-primary"), borderColor: css("--border"), borderWidth: 1, padding: 10, boxPadding: 4,
+        callbacks: { title: (items) => items.length ? date(items[0].parsed.x) : "", label: (c) => ` ${c.dataset.label}: ${yFmt(c.parsed.y)}` } },
+    },
+    scales: {
+      x: { type: "linear", reverse: false, grid: { display: false }, border: { color: grid },
+        ticks: { color: text, maxTicksLimit: 6, callback: (v) => shortDate(v) } },
+      y: { position: "right", grid: { color: grid }, border: { display: false }, ticks: { color: text, callback: (v) => yFmt(v) } },
+    },
+  };
+}
+
+function drawLine(id, datasets, yFmt, extra) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (charts[id]) charts[id].destroy();
+  const opts = baseOptions(yFmt);
+  if (extra) extra(opts);
+  charts[id] = new Chart(el, { type: "line", data: { datasets }, options: opts });
+}
+
+// ---------- comparison table
+const COLS = [
+  ["name", "البوت"], ["market", "العملة / الفريم"], ["status", "الحالة"], ["equity", "رأس المال", "n"],
+  ["return_pct", "الربح %", "n"], ["market_return_pct", "السوق %", "n"], ["dd", "أسوأ تراجع", "n"],
+  ["trades", "صفقات", "n"], ["win", "نسبة الربح", "n"], ["pf", "PF", "n"], ["last_seen", "آخر تحديث"],
+];
+const sortVal = (b, k) => ({
+  name: b.name, market: b.symbol + b.interval, status: b.in_position ? 1 : 0, equity: b.equity, return_pct: b.return_pct,
+  market_return_pct: b.market_return_pct ?? -1e9, dd: b.metrics ? b.metrics.max_drawdown_pct : 0,
+  trades: b.metrics ? b.metrics.trades : 0, win: b.metrics ? b.metrics.win_rate_pct : 0, pf: b.metrics ? (b.metrics.profit_factor ?? 1e9) : 0,
+  last_seen: b.last_seen || 0,
+}[k]);
+
+function renderTable(bots) {
+  const rows = bots.slice().sort((a, b) => {
+    const x = sortVal(a, sortKey), y = sortVal(b, sortKey);
+    return (x < y ? -1 : x > y ? 1 : 0) * (sortAsc ? 1 : -1);
+  });
+  const head = "<thead><tr>" + COLS.map(([k, l, n]) =>
+    `<th data-k="${k}" class="${n || ""} ${k === sortKey ? "sorted" + (sortAsc ? " asc" : "") : ""}">${l}</th>`).join("") + "</tr></thead>";
+  const body = rows.map((b) => {
+    const m = b.metrics || {};
+    let status;
+    if (!b.enabled) status = `<span class="sub">موقّف</span>`;
+    else if (!b.started) status = `<span class="sub">لسا ما بلّش</span>`;
+    else if (b.in_position) status = `في صفقة <span class="${cls(b.unrealized_pct)}">${num(pct(b.unrealized_pct))}</span>`;
+    else status = `<span class="sub">كاش</span>`;
+    const live = !b.enabled ? "" : b.error ? `<span class="dot bad" title="${esc(b.error)}"></span> ` : b.alive ? `<span class="dot ok"></span> ` : `<span class="dot bad"></span> `;
+    return `<tr data-name="${esc(b.name)}" class="${isBench(b) ? "bench" : ""} ${b.name === selected ? "selected" : ""}">
+      <td><span class="swatch" style="background:${colorFor(b)}"></span>${esc(b.name)}<div class="sub">${esc(STRATEGY_AR[b.strategy] || b.strategy)}</div></td>
+      <td class="ltr" style="text-align:right">${esc(b.symbol)} · ${esc(b.interval)}</td>
+      <td>${status}</td>
+      <td class="n">${num(fmt(b.equity))}</td>
+      <td class="n ${cls(b.return_pct)}">${num(pct(b.return_pct))}</td>
+      <td class="n ${cls(b.market_return_pct)}">${num(pct(b.market_return_pct))}</td>
+      <td class="n">${b.metrics ? num(fmt(m.max_drawdown_pct) + "%") : "—"}</td>
+      <td class="n">${num(m.trades ?? 0)}</td>
+      <td class="n">${m.trades ? num(fmt(m.win_rate_pct, 0) + "%") : "—"}</td>
+      <td class="n">${m.trades ? num(m.profit_factor == null ? "∞" : fmt(m.profit_factor)) : "—"}</td>
+      <td>${live}${b.last_seen ? ago(b.last_seen) : "—"}${b.error ? `<div class="err">${esc(b.error.slice(0, 60))}</div>` : ""}</td></tr>`;
+  }).join("");
+  const t = $("#bots-table");
+  t.innerHTML = head + "<tbody>" + body + "</tbody>";
+  t.querySelectorAll("th").forEach((th) => th.onclick = () => {
+    if (sortKey === th.dataset.k) sortAsc = !sortAsc; else { sortKey = th.dataset.k; sortAsc = false; }
+    render();
+  });
+  t.querySelectorAll("tbody tr").forEach((tr) => tr.onclick = () => { selected = tr.dataset.name; render(); loadDetail(selected); });
+}
+
+// ---------- bot detail
+async function loadDetail(name, quiet) {
+  const b = data && data.bots.find((x) => x.name === name);
+  if (!b) return;
+  const box = $("#detail");
+  box.hidden = false;
+  const d = await fetch("api/bot?name=" + encodeURIComponent(name), { cache: "no-store" }).then((r) => r.json()).catch(() => ({}));
+  const m = b.metrics || {};
+  const p = b.params || {};
+  const chips = [
+    `${STRATEGY_AR[b.strategy] || b.strategy}`, `${b.symbol} · ${b.interval}`, `ميزانية ${fmt(b.starting_balance, 0)} USDT`,
+    ...Object.entries(p).map(([k, v]) => `${k}=${v}`),
+    b.trend_filter_ema ? `فلتر EMA ${b.trend_filter_ema}` : null,
+    b.stop_loss_pct ? `Stop ${b.stop_loss_pct}%` : null, b.take_profit_pct ? `TP ${b.take_profit_pct}%` : null,
+    b.trailing_stop_pct ? `Trailing ${b.trailing_stop_pct}%` : null, `وضع ${String(b.mode).toUpperCase()}`,
+  ].filter(Boolean).map((c) => `<span class="chip" dir="auto">${esc(c)}</span>`).join("");
+  const position = b.in_position
+    ? `<div class="sub" style="margin-top:6px">صفقة مفتوحة: دخل على ${num(fmt(b.entry_price))} · السعر هلأ ${num(fmt(b.price))} ·
+       <span class="${cls(b.unrealized_pct)}">${num(pct(b.unrealized_pct))}</span></div>`
+    : `<div class="sub" style="margin-top:6px">ما في صفقة مفتوحة${b.price ? ` · السعر هلأ ${num(fmt(b.price))}` : ""}</div>`;
+  const stats = [
+    ["الربح", pct(b.return_pct), cls(b.return_pct)], ["أسوأ تراجع", m.max_drawdown_pct != null ? fmt(m.max_drawdown_pct) + "%" : "—"],
+    ["Sharpe", m.sharpe != null ? fmt(m.sharpe) : "—"], ["صفقات", m.trades ?? 0], ["نسبة الربح", m.trades ? fmt(m.win_rate_pct, 0) + "%" : "—"],
+    ["متوسط الصفقة", m.trades ? pct(m.avg_trade_pct) : "—", cls(m.avg_trade_pct)], ["رسوم", fmt(m.fees_paid ?? 0)],
+    ["بالسوق", m.exposure_pct != null ? fmt(m.exposure_pct, 0) + "%" : "—"],
+  ].map(([l, v, c]) => `<div class="kpi"><div class="label">${l}</div><div class="value ${c || ""}" style="font-size:18px">${num(v)}</div></div>`).join("");
+
+  const trades = (d.trades || []).slice().reverse();
+  const reasonAr = { signal: "إشارة", stop_loss: "Stop loss", take_profit: "Take profit", trailing_stop: "Trailing stop" };
+  const tradeRows = trades.length ? trades.map((t) => `<tr style="cursor:default">
+      <td class="num">${date(t.ts)}</td><td>${t.side === "BUY" ? "شراء ▲" : "بيع ▼"}</td>
+      <td class="n">${num(fmt(t.price))}</td><td class="n">${num(fmt(t.qty, 6))}</td><td class="n">${num(fmt(t.quote))}</td>
+      <td class="n">${num(fmt(t.fee))}</td>
+      <td class="n ${cls(t.pnl)}">${t.pnl == null ? "—" : num((t.pnl > 0 ? "+" : "") + fmt(t.pnl))}</td>
+      <td class="n ${cls(t.pnl_pct)}">${t.pnl_pct == null ? "—" : num(pct(t.pnl_pct))}</td>
+      <td>${esc(reasonAr[t.reason] || t.reason || "")}</td></tr>`).join("")
+    : `<tr style="cursor:default"><td colspan="9" class="empty">لسا ما في صفقات. على فريم ${esc(b.interval)} ممكن تستنى أيام أو أسابيع لأول إشارة.</td></tr>`;
+
+  box.innerHTML = `<div class="row-between"><h2><span class="swatch" style="background:${colorFor(b)}"></span>${esc(b.name)}</h2>
+      <button class="theme-btn" id="close-detail">إغلاق ✕</button></div>
+    <div class="chips">${chips}</div>${position}
+    <div class="kpis" style="margin-top:12px">${stats}</div>
+    <h2 style="margin-top:8px">رأس المال مع الوقت</h2>
+    <div class="sub">▲ شراء · ▼ بيع (أخضر = صفقة رابحة، أحمر = خاسرة)</div>
+    <div class="chart-box"><canvas id="chart-detail" role="img" aria-label="رأس مال ${esc(b.name)}"></canvas></div>
+    <h2 style="margin-top:16px">الصفقات <span class="sub">(${trades.length})</span></h2>
+    <div class="table-wrap" style="max-height:420px"><table><thead><tr style="cursor:default">
+      <th>الوقت</th><th>النوع</th><th class="n">السعر</th><th class="n">الكمية</th><th class="n">المبلغ</th><th class="n">رسوم</th>
+      <th class="n">ربح/خسارة</th><th class="n">%</th><th>السبب</th></tr></thead><tbody>${tradeRows}</tbody></table></div>`;
+  $("#close-detail").onclick = () => { selected = null; box.hidden = true; render(); };
+
+  const eq = (d.equity || []).map((p) => ({ x: p.ts, y: p.equity }));
+  if (b.alive && b.last_seen) eq.push({ x: b.last_seen * 1000, y: b.equity });
+  // Trade markers sit on the equity line at the trade time.
+  const at = (ts) => { let y = eq.length ? eq[0].y : b.starting_balance; for (const p of eq) { if (p.x > ts) break; y = p.y; } return y; };
+  const tr = d.trades || [];
+  const good = css("--good"), bad = css("--critical"), ink = css("--text-primary");
+  const markers = (side) => tr.filter((t) => t.side === side).map((t) => ({ x: t.ts, y: at(t.ts), t }));
+  const sells = markers("SELL");
+  drawLine("chart-detail", [
+    { label: "رأس المال", data: eq, borderColor: colorFor(b), backgroundColor: colorFor(b), borderWidth: 2, pointRadius: 0, pointHoverRadius: 4 },
+    { label: "شراء", type: "scatter", data: markers("BUY"), pointStyle: "triangle", pointRadius: 7, pointHoverRadius: 9,
+      backgroundColor: ink, borderColor: css("--surface-1"), borderWidth: 2 },
+    { label: "بيع", type: "scatter", data: sells, pointStyle: "triangle", rotation: 180, pointRadius: 7, pointHoverRadius: 9,
+      backgroundColor: sells.map((p) => (p.t.pnl > 0 ? good : bad)), borderColor: css("--surface-1"), borderWidth: 2 },
+  ], (v) => fmt(v, 0), (o) => {
+    o.plugins.tooltip.callbacks.label = (c) => {
+      const t = c.raw && c.raw.t;
+      if (!t) return ` ${c.dataset.label}: ${fmt(c.parsed.y)} USDT`;
+      return t.side === "BUY" ? ` شراء على ${fmt(t.price)}` : ` بيع على ${fmt(t.price)} (${pct(t.pnl_pct)})`;
+    };
+  });
+  if (!quiet) box.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// ---------- backtests
+let btRuns = [], btSort = "total_return_pct", btAsc = false;
+const BT_COLS = [
+  ["name", "البوت"], ["strategy", "الاستراتيجية"], ["total_return_pct", "الربح %", "n", pct], ["market_return_pct", "السوق %", "n", pct],
+  ["max_drawdown_pct", "أسوأ تراجع %", "n", (v) => fmt(v)], ["return_over_dd", "ربح/تراجع", "n", (v) => v == null ? "∞" : fmt(v)],
+  ["sharpe", "Sharpe", "n", (v) => fmt(v)], ["trades", "صفقات", "n", (v) => fmt(v, 0)], ["win_rate_pct", "نسبة الربح %", "n", (v) => fmt(v, 1)],
+  ["profit_factor", "PF", "n", (v) => v == null || v === "inf" ? "∞" : fmt(v)], ["fees_paid", "رسوم", "n", (v) => fmt(v)],
+  ["exposure_pct", "بالسوق %", "n", (v) => fmt(v, 0)], ["final_equity", "رأس المال", "n", (v) => fmt(v)],
+];
+async function loadBacktests() {
+  btRuns = await fetch("api/backtests", { cache: "no-store" }).then((r) => r.json()).catch(() => []);
+  const sel = $("#bt-select");
+  if (!btRuns.length) {
+    sel.hidden = true;
+    $("#bt-table").innerHTML = `<tbody><tr><td class="empty">ما في نتائج بعد. شغّل مثلاً:<br><span class="ltr">docker compose run --rm bot python main.py backtest --days 365</span></td></tr></tbody>`;
+    return;
+  }
+  sel.hidden = false;
+  const prev = sel.value;
+  sel.innerHTML = btRuns.map((r) => {
+    const m = r.id.match(/backtest_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})/);
+    const label = m ? `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}` : r.id;
+    return `<option value="${esc(r.id)}">${esc(label)} · ${r.rows.length} بوت</option>`;
+  }).join("");
+  if (prev && btRuns.some((r) => r.id === prev)) sel.value = prev;
+  sel.onchange = renderBacktest;
+  renderBacktest();
+}
+function renderBacktest() {
+  const run = btRuns.find((r) => r.id === $("#bt-select").value);
+  if (!run) return;
+  const rows = run.rows.slice().sort((a, b) => {
+    const x = a[btSort] ?? Infinity, y = b[btSort] ?? Infinity;
+    return (x < y ? -1 : x > y ? 1 : 0) * (btAsc ? 1 : -1);
+  });
+  const t = $("#bt-table");
+  t.innerHTML = "<thead><tr>" + BT_COLS.map(([k, l, n]) =>
+    `<th data-k="${k}" class="${n || ""} ${k === btSort ? "sorted" + (btAsc ? " asc" : "") : ""}">${l}</th>`).join("") + "</tr></thead><tbody>" +
+    rows.map((r) => `<tr style="cursor:default" class="${r.strategy === "buy_and_hold" ? "bench" : ""}">` + BT_COLS.map(([k, , n, f]) => {
+      const v = r[k];
+      const c = (k === "total_return_pct" || k === "market_return_pct") ? cls(v) : "";
+      return `<td class="${n || ""} ${c}">${f ? num(f(v)) : esc(v)}</td>`;
+    }).join("") + "</tr>").join("") + "</tbody>";
+  t.querySelectorAll("th").forEach((th) => th.onclick = () => {
+    if (btSort === th.dataset.k) btAsc = !btAsc; else { btSort = th.dataset.k; btAsc = false; }
+    renderBacktest();
+  });
+}
+
+loadOverview();
+setInterval(loadOverview, 30000);
+</script>
+</body>
+</html>

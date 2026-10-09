@@ -122,6 +122,8 @@ def step(bot: TradingBot, market: MarketData) -> None:
     bot.check_risk(price, price, now, open_price=price)
     candles = market.closed_klines(cfg.symbol, cfg.interval, bot.lookback)
     bot.on_closed_candles(candles, price=price)
+    if bot.storage:
+        bot.storage.heartbeat(bot.name, now, price, bot.broker.equity(price), bot.in_position)
 
 
 def _bot_loop(bot: TradingBot, market: MarketData, poll: float, stop: threading.Event) -> None:
@@ -129,8 +131,13 @@ def _bot_loop(bot: TradingBot, market: MarketData, poll: float, stop: threading.
     while not stop.is_set():
         try:
             step(bot, market)
-        except Exception:
+        except Exception as exc:
             bot.log.exception("step failed")
+            if bot.storage:
+                try:
+                    bot.storage.heartbeat(bot.name, int(time.time() * 1000), error=f"{type(exc).__name__}: {exc}")
+                except Exception:
+                    bot.log.exception("could not record heartbeat")
         stop.wait(poll)
     bot.log.info("stopped")
 
