@@ -78,6 +78,9 @@ def test_parallel_paper_bots(monkeypatch, tmp_path):
         assert state is not None, cfg.name
         assert storage.equity_curve(cfg.name), cfg.name
     assert storage.trades("buy_and_hold")[0]["side"] == "BUY"
+    beats = storage.heartbeats()
+    assert set(beats) == {b.name for b in bots}
+    assert all(hb["price"] and hb["error"] is None for hb in beats.values())
 
     # Restart: state is restored, mismatched strategy is refused.
     rebuilt = runner.build_bots(settings, bots, storage)

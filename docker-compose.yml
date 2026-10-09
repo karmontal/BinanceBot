@@ -19,3 +19,28 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
+
+  dashboard:
+    build: .
+    image: binancebot
+    container_name: binancebot-dashboard
+    depends_on: [bot]
+    restart: unless-stopped
+    command: ["python", "main.py", "dashboard", "--host", "0.0.0.0", "--port", "8080"]
+    env_file:
+      - path: .env                   # optional DASHBOARD_PASSWORD
+        required: false
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data             # read-only access is enforced by the app (SQLite WAL needs the dir)
+      - ./reports:/app/reports:ro
+    # Only reachable from the server itself. Open it from your PC with an SSH tunnel:
+    #   ssh -L 8080:localhost:8080 root@SERVER_IP   then browse http://localhost:8080
+    # To expose it publicly instead, use "8080:8080" AND set DASHBOARD_PASSWORD in .env.
+    ports:
+      - "127.0.0.1:8080:8080"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
