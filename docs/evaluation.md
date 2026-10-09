@@ -99,6 +99,9 @@ python main.py backtest --days 365 --interval 1d
 | BTC 4h | **donchian + فلتر EMA 200** | **45%** | **39%** |
 | BTC 4h | supertrend + فلتر | 35% | 35% |
 | BTC 1d | **ema_trend** | **39%** | **32%** |
+| ETH 4h | Buy & Hold | 46% | 81% |
+| ETH 4h | **donchian + فلتر EMA 200** | **37%** | **50%** |
+| ETH 4h | supertrend + فلتر | 29% | 75% ❌ |
 | ETH 1d | Buy & Hold | 45% | 79% |
 | ETH 1d | **supertrend** | **53%** | 53% |
 | ETH 1d | supertrend + فلتر | 45% | 42% |
@@ -107,4 +110,5 @@ python main.py backtest --days 365 --interval 1d
 - فريم 1h خسران مقابل Buy & Hold بكل الفترات (رسوم + ضجيج).
 - `rsi_reversion` و `bollinger_reversion` و `macd_cross` فشلوا بكل الاختبارات.
 - فلتر EMA 200 بينفع على 4h (ضاعف ربح donchian وقصّ التراجع)، بس على 1d بيضرّ لأنه بطيء كتير.
+- **الأكثر ثباتاً:** donchian + فلتر EMA 200 على 4h. كانت أحسن من Buy & Hold (الربح ÷ التراجع) على BTC و ETH.
 - الأفضل بيختلف حسب العملة والفريم → الأفضل توزيع رأس المال على 2–3 استراتيجيات بدل الرهان على وحدة.

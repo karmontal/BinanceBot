@@ -71,17 +71,13 @@ bots:
     interval: 1d
     params: {period: 10, multiplier: 3.0}
 
+  # ETH 4h: ~37%/yr, max drawdown 50% (buy & hold: 46%/yr, 81%).
   - name: donchian_4h_filter_eth
     strategy: donchian_breakout
     symbol: ETHUSDT
     params: {entry_period: 20, exit_period: 10}
     trend_filter_ema: 200
 
-  - name: supertrend_4h_filter_eth
-    strategy: supertrend
-    symbol: ETHUSDT
-    params: {period: 10, multiplier: 3.0}
-    trend_filter_ema: 200
 
   # ---------------- disabled (kept for reference / re-testing) ----------------
   # Lost to buy & hold on 1h in every period tested (fees + noise).
@@ -100,6 +96,14 @@ bots:
   - name: donchian_4h
     strategy: donchian_breakout
     params: {entry_period: 20, exit_period: 10}
+    enabled: false
+
+  # ETH 4h 2019-2026: max drawdown 75% (worse than without the filter).
+  - name: supertrend_4h_filter_eth
+    strategy: supertrend
+    symbol: ETHUSDT
+    params: {period: 10, multiplier: 3.0}
+    trend_filter_ema: 200
     enabled: false
 
   # Lost money on every timeframe and period tested.
