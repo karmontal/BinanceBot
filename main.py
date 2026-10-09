@@ -56,11 +56,22 @@ def cmd_strategies(args) -> None:
 
 
 def cmd_backtest(args) -> None:
+    from dataclasses import replace
+
+    from binancebot.bot import lookback_for
+    from binancebot.models import interval_ms
+    from binancebot.strategies import create_strategy
+
     settings, bots = load_config(args.config)
     bots = _filter(bots, args.only) if args.only else [b for b in bots if b.enabled]
+    overrides = {k: v for k, v in (("interval", args.interval), ("symbol", args.symbol)) if v}
+    if overrides:
+        suffix = f"@{args.interval}" if args.interval else ""
+        bots = [replace(b, name=b.name + suffix, **overrides) for b in bots]
     if not args.verbose:
         logging.getLogger("bot").setLevel(logging.WARNING)  # per-trade logs are noise here
-    end_ms = _parse_date(args.end) if args.end else int(time.time() * 1000)
+    # Round "now" down to the hour so repeated runs reuse the cached download.
+    end_ms = _parse_date(args.end) if args.end else int(time.time() * 1000) // 3_600_000 * 3_600_000
     start_ms = _parse_date(args.start) if args.start else end_ms - args.days * 86_400_000
     client = BinanceClient(settings.market_data_url)
     data = {}
@@ -69,19 +80,28 @@ def cmd_backtest(args) -> None:
         key = (cfg.symbol, cfg.interval)
         if key not in data:
             if args.synthetic:
-                data[key] = generate_candles(args.synthetic, cfg.interval, seed=args.seed)
+                data[key] = (generate_candles(args.synthetic, cfg.interval, seed=args.seed), None)
             elif args.csv:
-                data[key] = load_candles_csv(args.csv)
+                data[key] = (load_candles_csv(args.csv), None)
             else:
-                cache = os.path.join("data", "cache", f"{cfg.symbol}_{cfg.interval}_{start_ms}_{end_ms}.csv")
+                # Extra candles before the start so indicators are warmed up on day one.
+                warmup = max(
+                    lookback_for(create_strategy(b.strategy, b.params), b.trend_filter_ema)
+                    for b in bots if (b.symbol, b.interval) == key
+                )
+                fetch_from = start_ms - warmup * interval_ms(cfg.interval)
+                cache = os.path.join("data", "cache", f"{cfg.symbol}_{cfg.interval}_{fetch_from}_{end_ms}.csv")
                 if os.path.exists(cache):
-                    data[key] = load_candles_csv(cache)
+                    candles = load_candles_csv(cache)
                 else:
                     logging.info("downloading %s %s history...", *key)
-                    data[key] = client.historical_klines(cfg.symbol, cfg.interval, start_ms, end_ms)
-                    save_candles_csv(cache, data[key])
-            logging.info("%s %s: %d candles", *key, len(data[key]))
-        results.append(run_backtest(cfg, data[key], settings.fee_rate, settings.slippage_pct))
+                    candles = client.historical_klines(cfg.symbol, cfg.interval, fetch_from, end_ms)
+                    save_candles_csv(cache, candles)
+                data[key] = (candles, start_ms)
+            in_range = sum(1 for c in data[key][0] if data[key][1] is None or c.open_time >= data[key][1])
+            logging.info("%s %s: %d candles", *key, in_range)
+        candles, trade_from = data[key]
+        results.append(run_backtest(cfg, candles, settings.fee_rate, settings.slippage_pct, start_ms=trade_from))
 
     rows = rows_from_results(results)
     print()
@@ -148,6 +168,8 @@ def main(argv=None) -> None:
     b.add_argument("--start", help="YYYY-MM-DD (UTC)")
     b.add_argument("--end", help="YYYY-MM-DD (UTC)")
     b.add_argument("--only", help="comma separated bot names")
+    b.add_argument("--interval", help="override every bot's interval, e.g. 4h or 1d")
+    b.add_argument("--symbol", help="override every bot's symbol, e.g. ETHUSDT")
     b.add_argument("--csv", help="use candles from a CSV file instead of downloading")
     b.add_argument("--synthetic", type=int, metavar="N", help="use N synthetic candles (offline demo)")
     b.add_argument("--seed", type=int, default=42)

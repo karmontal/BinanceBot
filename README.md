@@ -45,9 +45,12 @@ python main.py strategies
 ```bash
 python main.py backtest --days 180
 python main.py backtest --start 2024-01-01 --end 2024-06-30
+python main.py backtest --days 365 --interval 4h   # كل البوتات على فريم 4 ساعات
+python main.py backtest --days 365 --symbol ETHUSDT
 python main.py backtest --only sma_cross_20_50,supertrend_10_3
 python main.py backtest --synthetic 3000   # بيانات وهمية، بدون إنترنت (للتجربة بس)
 ```
+الباك تست بينزّل شموع زيادة قبل تاريخ البداية عشان تكون المؤشرات (مثل EMA 200) جاهزة من أول يوم، وما بيتداول عليها.
 بيطبع جدول مقارنة مرتّب، وبيحفظ النتائج بـ `reports/backtest_<التاريخ>/` (ملخص + كل صفقات كل بوت CSV).
 
 ### 3. تشغيل البوتات Paper بشكل متوازي
@@ -91,6 +94,7 @@ defaults:                   # بتنطبق على كل البوتات
   stop_loss_pct: null       # مثلاً 3
   take_profit_pct: null     # مثلاً 6
   trailing_stop_pct: null   # مثلاً 4
+  trend_filter_ema: null    # مثلاً 200: ما بيشتري إلا إذا السعر فوق EMA(200) لنفس الفريم
 bots:
   - name: sma_cross_20_50   # اسم فريد
     strategy: sma_crossover

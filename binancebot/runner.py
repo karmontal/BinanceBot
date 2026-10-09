@@ -7,7 +7,6 @@ import threading
 import time
 from typing import Dict, List, Tuple
 
-from .backtest import lookback_for
 from .bot import BotConfig, TradingBot
 from .broker import BinanceBroker, Broker, PaperBroker
 from .config import Settings
@@ -121,7 +120,7 @@ def step(bot: TradingBot, market: MarketData) -> None:
     price = market.price(cfg.symbol)
     now = int(time.time() * 1000)
     bot.check_risk(price, price, now, open_price=price)
-    candles = market.closed_klines(cfg.symbol, cfg.interval, lookback_for(bot.strategy))
+    candles = market.closed_klines(cfg.symbol, cfg.interval, bot.lookback)
     bot.on_closed_candles(candles, price=price)
 
 
