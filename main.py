@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import signal
 import sys
 import time
 from datetime import datetime, timezone
@@ -93,8 +94,15 @@ def cmd_backtest(args) -> None:
     print(f"\nSaved to {out_dir}/")
 
 
+def _raise_interrupt(signum, frame):
+    raise KeyboardInterrupt
+
+
 def cmd_run(args) -> None:
     from binancebot.runner import run
+
+    # `docker stop` / systemd send SIGTERM: shut down as cleanly as on Ctrl+C.
+    signal.signal(signal.SIGTERM, _raise_interrupt)
 
     settings, bots = load_config(args.config)
     bots = _filter(bots, args.only)

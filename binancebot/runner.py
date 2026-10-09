@@ -153,14 +153,17 @@ def run(settings: Settings, configs: List[BotConfig], storage: Storage) -> None:
     market = MarketData(BinanceClient(settings.market_data_url), ttl=max(settings.poll_seconds / 2, 1))
     stop = threading.Event()
     threads = []
-    for i, bot in enumerate(bots):
-        t = threading.Thread(target=_bot_loop, args=(bot, market, settings.poll_seconds, stop), name=bot.name, daemon=True)
-        t.start()
-        threads.append(t)
-        time.sleep(0.2 if i < len(bots) - 1 else 0)  # stagger API calls
-    log.info("%d bots running. Ctrl+C to stop.", len(bots))
-    next_summary = time.time() + settings.summary_minutes * 60
     try:
+        for i, bot in enumerate(bots):
+            t = threading.Thread(
+                target=_bot_loop, args=(bot, market, settings.poll_seconds, stop), name=bot.name, daemon=True
+            )
+            t.start()
+            threads.append(t)
+            if i < len(bots) - 1:
+                time.sleep(0.2)  # stagger API calls
+        log.info("%d bots running. Ctrl+C to stop.", len(bots))
+        next_summary = time.time() + settings.summary_minutes * 60
         while any(t.is_alive() for t in threads):
             time.sleep(1)
             if time.time() >= next_summary:
@@ -170,6 +173,7 @@ def run(settings: Settings, configs: List[BotConfig], storage: Storage) -> None:
         log.info("stopping...")
     finally:
         stop.set()
+        market.client.stop_event.set()
         for t in threads:
             t.join(timeout=30)
         log.info("final performance:\n%s", summary(bots, storage))
