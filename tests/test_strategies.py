@@ -62,3 +62,16 @@ def test_every_strategy_backtests_and_trades(name):
     sides = [t["side"] for t in result["trades"]]
     assert all(a != b for a, b in zip(sides, sides[1:]))
     assert sides[0] == "BUY"
+
+
+def test_backtest_warmup_candles_are_not_traded():
+    candles = generate_candles(600, "1h", seed=5)
+    start = candles[200].open_time
+    cfg = BotConfig(name="bh", strategy="buy_and_hold", interval="1h", starting_balance=1000)
+    result = run_backtest(cfg, candles, start_ms=start)
+    assert len(result["equity"]) == 400
+    assert result["trades"][0]["ts"] == candles[200].close_time
+    # Warm-up lets indicator strategies trade from the first in-range candle.
+    cfg = BotConfig(name="e", strategy="ema_trend", interval="1h")
+    warm = run_backtest(cfg, candles, start_ms=start)
+    assert len(warm["equity"]) == 400

@@ -118,3 +118,31 @@ def test_binance_broker_accounting():
 def test_binance_broker_respects_min_notional():
     b = BinanceBroker(FakeClient(), "BTCUSDT", cash=3.0)
     assert b.buy(50000, 3.0) is None
+
+
+def test_trend_filter_blocks_entries_below_ema():
+    falling = [candle(i, 100 - i, 100 - i, 100 - i, 100 - i) for i in range(30)]
+    bot = _bot(trend_filter_ema=10)
+    assert bot.on_closed_candles(falling) is Signal.HOLD  # close < EMA(10) in a down-trend
+    assert not bot.in_position
+
+    rising = [candle(i, 50 + i, 50 + i, 50 + i, 50 + i) for i in range(30)]
+    bot = _bot(trend_filter_ema=10)
+    assert bot.on_closed_candles(rising) is Signal.BUY
+    assert bot.in_position
+
+
+def test_trend_filter_needs_enough_history():
+    bot = _bot(trend_filter_ema=50)
+    assert bot.on_closed_candles([candle(i, 100, 100, 100, 100) for i in range(10)]) is Signal.HOLD
+
+
+def test_lookback_covers_trend_filter():
+    assert _bot().lookback == 300
+    assert _bot(trend_filter_ema=200).lookback == 500
+    assert _bot(trend_filter_ema=900).lookback == 1000
+
+
+def test_invalid_trend_filter_rejected():
+    with pytest.raises(ValueError):
+        BotConfig(name="x", strategy="buy_and_hold", trend_filter_ema=1)

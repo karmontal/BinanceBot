@@ -5,6 +5,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from . import indicators as ind
 from .broker import Broker
 from .models import Candle, Fill, Signal
 from .storage import Storage
@@ -25,6 +26,8 @@ class BotConfig:
     stop_loss_pct: Optional[float] = None
     take_profit_pct: Optional[float] = None
     trailing_stop_pct: Optional[float] = None
+    # Only allow new entries while the close is above EMA(N) of this bot's candles.
+    trend_filter_ema: Optional[int] = None
     mode: str = "paper"
     enabled: bool = True
 
@@ -33,6 +36,14 @@ class BotConfig:
             raise ValueError(f"{self.name}: position_size_pct must be in (0, 100]")
         if self.mode not in ("paper", "testnet", "live"):
             raise ValueError(f"{self.name}: mode must be paper, testnet or live")
+        if self.trend_filter_ema is not None and self.trend_filter_ema < 2:
+            raise ValueError(f"{self.name}: trend_filter_ema must be >= 2")
+
+
+def lookback_for(strategy: Strategy, trend_filter_ema: Optional[int] = None) -> int:
+    """Closed candles fed to the strategy each step (EMAs need ~2x their period to settle)."""
+    needed = max(strategy.min_candles, (trend_filter_ema or 0) * 2)
+    return min(max(300, needed + 100), 1000)
 
 
 class TradingBot:
@@ -69,6 +80,18 @@ class TradingBot:
     @property
     def in_position(self) -> bool:
         return self.broker.qty > 0
+
+    @property
+    def lookback(self) -> int:
+        """How many closed candles to feed the strategy on every step."""
+        return lookback_for(self.strategy, self.config.trend_filter_ema)
+
+    def _trend_allows_entry(self, candles: List[Candle]) -> bool:
+        period = self.config.trend_filter_ema
+        if not period:
+            return True
+        trend = ind.ema([c.close for c in candles], period)[-1]
+        return trend is not None and candles[-1].close > trend
 
     def state(self) -> Dict[str, Any]:
         return {
@@ -117,6 +140,8 @@ class TradingBot:
         if len(candles) >= self.strategy.min_candles:
             signal = self.strategy.generate_signal(candles, self.in_position)
 
+        if signal is Signal.BUY and not self.in_position and not self._trend_allows_entry(candles):
+            signal = Signal.HOLD
         if signal is Signal.BUY and not self.in_position:
             self._buy(price, ts, reason="signal")
         elif signal is Signal.SELL and self.in_position:

@@ -27,12 +27,14 @@ defaults:
   stop_loss_pct: null         # e.g. 3  -> exit if price falls 3% below entry
   take_profit_pct: null       # e.g. 6  -> exit if price rises 6% above entry
   trailing_stop_pct: null     # e.g. 4  -> exit if price falls 4% from its peak
+  trend_filter_ema: null      # e.g. 200 -> only BUY while close > EMA(200) of this bot's candles
 
 bots:
   # Benchmark: every strategy should beat this to be worth it.
   - name: buy_and_hold
     strategy: buy_and_hold
 
+  # ---------------- 1h: original set ----------------
   - name: sma_cross_20_50
     strategy: sma_crossover
     params: {fast: 20, slow: 50}
@@ -46,15 +48,6 @@ bots:
     params: {period: 14, oversold: 30, overbought: 70}
     stop_loss_pct: 5
 
-  - name: bollinger_reversion_20
-    strategy: bollinger_reversion
-    params: {period: 20, num_std: 2.0, exit: middle}
-    stop_loss_pct: 5
-
-  - name: macd_cross
-    strategy: macd_cross
-    params: {fast: 12, slow: 26, signal: 9}
-
   - name: donchian_breakout_20_10
     strategy: donchian_breakout
     params: {entry_period: 20, exit_period: 10}
@@ -63,14 +56,64 @@ bots:
     strategy: supertrend
     params: {period: 10, multiplier: 3.0}
 
-  # Same idea, different settings: compare variants side by side.
+  # ---------------- 4h: fewer trades, lower fees ----------------
+  # trend_filter_ema 200 on 4h candles = ~33-day trend; blocks buys in down-trends.
+  - name: sma_cross_4h
+    strategy: sma_crossover
+    interval: 4h
+    params: {fast: 20, slow: 50}
+
+  - name: sma_cross_4h_filter
+    strategy: sma_crossover
+    interval: 4h
+    params: {fast: 20, slow: 50}
+    trend_filter_ema: 200
+
+  - name: supertrend_4h
+    strategy: supertrend
+    interval: 4h
+    params: {period: 10, multiplier: 3.0}
+
+  - name: supertrend_4h_filter
+    strategy: supertrend
+    interval: 4h
+    params: {period: 10, multiplier: 3.0}
+    trend_filter_ema: 200
+
+  - name: rsi_reversion_4h_filter
+    strategy: rsi_reversion
+    interval: 4h
+    params: {period: 14, oversold: 30, overbought: 70}
+    stop_loss_pct: 8
+    trend_filter_ema: 200
+
+  - name: donchian_4h_filter
+    strategy: donchian_breakout
+    interval: 4h
+    params: {entry_period: 20, exit_period: 10}
+    trend_filter_ema: 200
+
+  # ---------------- disabled ----------------
+  # Lost money in bull (2023) AND bear (2022) markets on 1h. Kept for reference.
+  - name: macd_cross
+    strategy: macd_cross
+    params: {fast: 12, slow: 26, signal: 9}
+    enabled: false
+
+  - name: bollinger_reversion_20
+    strategy: bollinger_reversion
+    params: {period: 20, num_std: 2.0, exit: middle}
+    stop_loss_pct: 5
+    enabled: false
+
   - name: sma_cross_20_50_risk
     strategy: sma_crossover
     params: {fast: 20, slow: 50}
     stop_loss_pct: 3
     trailing_stop_pct: 5
+    enabled: false
 
-  # Example on another symbol / timeframe (set enabled: true to use it)
+  # Example on another symbol (set enabled: true to use it)
   - name: supertrend_eth_4h
     strategy: supertrend
     symbol: ETHUSDT
