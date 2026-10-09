@@ -21,7 +21,7 @@ db_path: data/bots.db
 # Values applied to every bot unless the bot overrides them.
 defaults:
   symbol: BTCUSDT
-  interval: 1h
+  interval: 4h
   starting_balance: 1000      # USDT budget per bot
   position_size_pct: 100      # % of the bot's equity used per trade
   stop_loss_pct: null         # e.g. 3  -> exit if price falls 3% below entry
@@ -30,92 +30,94 @@ defaults:
   trend_filter_ema: null      # e.g. 200 -> only BUY while close > EMA(200) of this bot's candles
 
 bots:
+  # Picked from backtests 2019-2026 (see docs/evaluation.md): trend-following on
+  # 4h/1d works; 1h and mean-reversion lost to fees and noise.
+
+  # ---------------- BTC ----------------
   # Benchmark: every strategy should beat this to be worth it.
   - name: buy_and_hold
     strategy: buy_and_hold
 
-  # ---------------- 1h: original set ----------------
-  - name: sma_cross_20_50
-    strategy: sma_crossover
-    params: {fast: 20, slow: 50}
-
-  - name: ema_trend_12_26_200
-    strategy: ema_trend
-    params: {fast: 12, slow: 26, trend: 200}
-
-  - name: rsi_reversion_14
-    strategy: rsi_reversion
-    params: {period: 14, oversold: 30, overbought: 70}
-    stop_loss_pct: 5
-
-  - name: donchian_breakout_20_10
+  # Best BTC 4h result: ~45%/yr, max drawdown 39% (buy & hold: 49%/yr, 77%).
+  - name: donchian_4h_filter
     strategy: donchian_breakout
     params: {entry_period: 20, exit_period: 10}
+    trend_filter_ema: 200
 
-  - name: supertrend_10_3
+  - name: supertrend_4h_filter
     strategy: supertrend
     params: {period: 10, multiplier: 3.0}
-
-  # ---------------- 4h: fewer trades, lower fees ----------------
-  # trend_filter_ema 200 on 4h candles = ~33-day trend; blocks buys in down-trends.
-  - name: sma_cross_4h
-    strategy: sma_crossover
-    interval: 4h
-    params: {fast: 20, slow: 50}
-
-  - name: sma_cross_4h_filter
-    strategy: sma_crossover
-    interval: 4h
-    params: {fast: 20, slow: 50}
     trend_filter_ema: 200
 
   - name: supertrend_4h
     strategy: supertrend
-    interval: 4h
     params: {period: 10, multiplier: 3.0}
 
-  - name: supertrend_4h_filter
+  # Best BTC 1d result: ~39%/yr, max drawdown 32%. Trades only a few times a year.
+  - name: ema_trend_1d
+    strategy: ema_trend
+    interval: 1d
+    params: {fast: 12, slow: 26, trend: 200}
+
+  # ---------------- ETH ----------------
+  - name: buy_and_hold_eth
+    strategy: buy_and_hold
+    symbol: ETHUSDT
+
+  # Best ETH 1d result: ~53%/yr (beat buy & hold), max drawdown 53%.
+  - name: supertrend_1d_eth
     strategy: supertrend
-    interval: 4h
+    symbol: ETHUSDT
+    interval: 1d
     params: {period: 10, multiplier: 3.0}
-    trend_filter_ema: 200
 
-  - name: rsi_reversion_4h_filter
-    strategy: rsi_reversion
-    interval: 4h
-    params: {period: 14, oversold: 30, overbought: 70}
-    stop_loss_pct: 8
-    trend_filter_ema: 200
-
-  - name: donchian_4h_filter
+  - name: donchian_4h_filter_eth
     strategy: donchian_breakout
-    interval: 4h
+    symbol: ETHUSDT
     params: {entry_period: 20, exit_period: 10}
     trend_filter_ema: 200
 
-  # ---------------- disabled ----------------
-  # Lost money in bull (2023) AND bear (2022) markets on 1h. Kept for reference.
-  - name: macd_cross
-    strategy: macd_cross
-    params: {fast: 12, slow: 26, signal: 9}
+  - name: supertrend_4h_filter_eth
+    strategy: supertrend
+    symbol: ETHUSDT
+    params: {period: 10, multiplier: 3.0}
+    trend_filter_ema: 200
+
+  # ---------------- disabled (kept for reference / re-testing) ----------------
+  # Lost to buy & hold on 1h in every period tested (fees + noise).
+  - name: sma_cross_20_50_1h
+    strategy: sma_crossover
+    interval: 1h
+    params: {fast: 20, slow: 50}
     enabled: false
 
-  - name: bollinger_reversion_20
-    strategy: bollinger_reversion
-    params: {period: 20, num_std: 2.0, exit: middle}
+  - name: sma_cross_4h_filter
+    strategy: sma_crossover
+    params: {fast: 20, slow: 50}
+    trend_filter_ema: 200
+    enabled: false
+
+  - name: donchian_4h
+    strategy: donchian_breakout
+    params: {entry_period: 20, exit_period: 10}
+    enabled: false
+
+  # Lost money on every timeframe and period tested.
+  - name: rsi_reversion_14
+    strategy: rsi_reversion
+    params: {period: 14, oversold: 30, overbought: 70}
     stop_loss_pct: 5
     enabled: false
 
-  - name: sma_cross_20_50_risk
-    strategy: sma_crossover
-    params: {fast: 20, slow: 50}
-    stop_loss_pct: 3
-    trailing_stop_pct: 5
+  - name: macd_cross_1h
+    strategy: macd_cross
+    interval: 1h
+    params: {fast: 12, slow: 26, signal: 9}
     enabled: false
 
-  # Example on another symbol (set enabled: true to use it)
-  - name: supertrend_eth_4h
-    strategy: supertrend
-    symbol: ETHUSDT
-    interval: 4h
+  - name: bollinger_reversion_1h
+    strategy: bollinger_reversion
+    interval: 1h
+    params: {period: 20, num_std: 2.0, exit: middle}
+    stop_loss_pct: 5
     enabled: false
