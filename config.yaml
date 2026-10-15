@@ -79,6 +79,22 @@ bots:
     trend_filter_ema: 200
 
 
+  # ---------------- 1h: observation only ----------------
+  # NOT candidates: 1h lost to buy & hold in every backtest (fees + noise).
+  # They trade every few days instead of every few weeks, so they show the
+  # paper pipeline (signals, fills, fees, dashboard) working while the 4h/1d
+  # bots wait in cash, and give a live check on the backtest's verdict.
+  - name: donchian_1h_filter
+    strategy: donchian_breakout
+    interval: 1h
+    params: {entry_period: 20, exit_period: 10}
+    trend_filter_ema: 200
+
+  - name: supertrend_1h
+    strategy: supertrend
+    interval: 1h
+    params: {period: 10, multiplier: 3.0}
+
   # ---------------- disabled (kept for reference / re-testing) ----------------
   # Lost to buy & hold on 1h in every period tested (fees + noise).
   - name: sma_cross_20_50_1h
